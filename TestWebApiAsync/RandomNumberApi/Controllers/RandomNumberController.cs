@@ -12,8 +12,6 @@ namespace ApiB.Controllers
     [Route("[controller]")]
     public class RandomNumberController : ControllerBase
     {
-        
-
         private readonly ILogger<RandomNumberController> _logger;
 
         public RandomNumberController(ILogger<RandomNumberController> logger)
@@ -21,6 +19,10 @@ namespace ApiB.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Get random number after 3 sec
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public ActionResult<ApiResult> Get()
         {

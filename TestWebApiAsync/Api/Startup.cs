@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TestUtility;
@@ -35,6 +36,9 @@ namespace WebApplication6
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Api", Version = "v1" });
+
+                var filePath = Path.Combine(System.AppContext.BaseDirectory, "Api.xml");
+                c.IncludeXmlComments(filePath);
             });
 
 

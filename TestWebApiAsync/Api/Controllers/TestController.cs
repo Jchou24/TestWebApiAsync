@@ -12,11 +12,6 @@ namespace WebApplication6.Controllers
     [Route("[controller]/[Action]")]
     public class TestController : ControllerBase
     {
-        private static readonly string[] Summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
-
         private readonly ILogger<TestController> _logger;
         private readonly IRandomNumberApiClientService _randomNumberApiClientService;
 
@@ -26,6 +21,10 @@ namespace WebApplication6.Controllers
             _randomNumberApiClientService = randomNumberApiClientService;
         }
 
+        /// <summary>
+        /// sync with same thread
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public ActionResult<TestResult> TestSync()
         {
@@ -40,7 +39,10 @@ namespace WebApplication6.Controllers
             return Ok(testResult);
         }
 
-
+        /// <summary>
+        /// sync with same thread
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public ActionResult<TestResult> TestSync2()
         {
@@ -55,6 +57,10 @@ namespace WebApplication6.Controllers
             return Ok(testResult);
         }
 
+        /// <summary>
+        /// sync with different thread
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public ActionResult<TestResult> TestSync3()
         {
@@ -75,6 +81,10 @@ namespace WebApplication6.Controllers
             return testResult;
         }
 
+        /// <summary>
+        /// async with different thread
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public ActionResult<TestResult> TestAsync1()
         {
@@ -102,10 +112,36 @@ namespace WebApplication6.Controllers
             return testResult;
         }
 
+        /// <summary>
+        /// async with different thread by loop
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
-        public ActionResult<TestResult> TestAsyncLoopBatch()
+        public ActionResult<TestResult> TestAsyncLoop()
         {
-            return Ok();
+            TestResult testResult = _TestAsync2().Result;
+            return Ok(testResult);
+        }
+
+        private async Task<TestResult> _TestAsync2()
+        {
+            var testStartDT = DateTime.Now;
+            var serviceTaskResults = new List<Task<ServiceResult>>();
+
+            for (int i = 0; i < 3; i++)
+            {
+                serviceTaskResults.Add(_randomNumberApiClientService.GetNumberAsync());
+            }            
+
+            foreach (var serviceTaskResult in serviceTaskResults)
+            {
+                await serviceTaskResult;
+            }
+
+            var apiResults = serviceTaskResults.Select(x => x.Result).ToList();
+
+            var testResult = new TestResult(testStartDT, apiResults);
+            return testResult;
         }
     }
 }

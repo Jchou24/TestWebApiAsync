@@ -396,3 +396,5 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/TestWebApiAsync/Api/Api.xml
+/TestWebApiAsync/RandomNumberApi/RandomNumberApi.xml

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -31,6 +32,9 @@ namespace ApiB
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "RandomNumberApi", Version = "v1" });
+
+                var filePath = Path.Combine(System.AppContext.BaseDirectory, "RandomNumberApi.xml");
+                c.IncludeXmlComments(filePath);
             });
         }
 

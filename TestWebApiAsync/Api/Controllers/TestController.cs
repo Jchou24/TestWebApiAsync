@@ -22,126 +22,90 @@ namespace WebApplication6.Controllers
         }
 
         /// <summary>
-        /// sync with same thread
+        /// async call with amount: "count", conccurent, batch size
         /// </summary>
         /// <returns></returns>
-        [HttpGet]
-        public ActionResult<TestResult> TestSync()
+        [HttpGet("{count}/{batchSize}")]
+        public async Task<ActionResult<TestResult>> TestAsyncLoopCountConccurentBatch(int count, int batchSize)
         {
             var testStartDT = DateTime.Now;
-            var serviceResult = new List<ServiceResult>();
+            var serviceTaskResults = new List<ServiceResult>();
+            int numberOfBatches = (int)Math.Ceiling((double)count / batchSize);
 
-            serviceResult.Add(_randomNumberApiClientService.GetNumber());
-            serviceResult.Add(_randomNumberApiClientService.GetNumber());
-            serviceResult.Add(_randomNumberApiClientService.GetNumber());
 
-            var testResult = new TestResult(testStartDT, serviceResult);
-            return Ok(testResult);
-        }
+            //var serviceTasks = new List<Func<int?, Task<ServiceResult>>>();
+            //for (int i = 0; i < count; i++)
+            //{
+            //    serviceTasks.Add(_randomNumberApiClientService.GetNumberAsync);
+            //}
+            var serviceTasks = Enumerable
+                .Repeat<Func<int?, Task<ServiceResult>>>(_randomNumberApiClientService.GetNumberAsync, count)
+                .ToList();
 
-        /// <summary>
-        /// sync with same thread
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        public ActionResult<TestResult> TestSync2()
-        {
-            var testStartDT = DateTime.Now;
-            var ServiceResults = new List<ServiceResult>();
-
-            ServiceResults.Add(_randomNumberApiClientService.GetNumberAsync().Result);
-            ServiceResults.Add(_randomNumberApiClientService.GetNumberAsync().Result);
-            ServiceResults.Add(_randomNumberApiClientService.GetNumberAsync().Result);
-
-            var testResult = new TestResult(testStartDT, ServiceResults);
-            return Ok(testResult);
-        }
-
-        /// <summary>
-        /// sync with different thread
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        public ActionResult<TestResult> TestSync3()
-        {
-            TestResult testResult = _TestSync3().Result;
-            return Ok(testResult);
-        }
-
-        private async Task<TestResult> _TestSync3()
-        {
-            var testStartDT = DateTime.Now;
-            var serviceResults = new List<ServiceResult>();
-
-            serviceResults.Add(await _randomNumberApiClientService.GetNumberAsync());
-            serviceResults.Add(await _randomNumberApiClientService.GetNumberAsync());
-            serviceResults.Add(await _randomNumberApiClientService.GetNumberAsync());
-
-            var testResult = new TestResult(testStartDT, serviceResults);
-            return testResult;
-        }
-
-        /// <summary>
-        /// async with different thread
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        public ActionResult<TestResult> TestAsync1()
-        {
-            TestResult testResult = _TestAsync1().Result;
-            return Ok(testResult);
-        }
-
-        private async Task<TestResult> _TestAsync1()
-        {
-            var testStartDT = DateTime.Now;
-            var serviceTaskResults = new List<Task<ServiceResult>>();
-
-            serviceTaskResults.Add(_randomNumberApiClientService.GetNumberAsync());
-            serviceTaskResults.Add(_randomNumberApiClientService.GetNumberAsync());
-            serviceTaskResults.Add(_randomNumberApiClientService.GetNumberAsync());
-
-            foreach (var serviceTaskResult in serviceTaskResults)
+            int sleepTime = 1;
+            int Counter()
             {
-                await serviceTaskResult;
+                var time = sleepTime * 1000;
+                sleepTime += 1;
+                if (sleepTime == 4)
+                {
+                    sleepTime = 1;
+                }
+                return time;
             }
 
-            var apiResults = serviceTaskResults.Select(x => x.Result).ToList();
+            var currentTask = new List<Task<ServiceResult>>();
+            var doneTasks = new List<Task<ServiceResult>>();
+            var maxCurrentTaskCount = 10;
+            while (serviceTasks.Any()) {
+                var idleCount = batchSize - currentTask.Count;
+                if (idleCount > 0)
+                {
+                    var newTasks = serviceTasks.Take(idleCount).Select(x => x(Counter()) );
+                    currentTask.AddRange(newTasks);
+                    serviceTasks.RemoveRange(0, idleCount);
+                }
 
-            var testResult = new TestResult(testStartDT, apiResults);
-            return testResult;
-        }
+                await Task.WhenAny(currentTask);
+                //await Task.WhenAll(currentTask);
 
-        /// <summary>
-        /// async with different thread by loop
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        public ActionResult<TestResult> TestAsyncLoop()
-        {
-            TestResult testResult = _TestAsync2().Result;
-            return Ok(testResult);
-        }
+                //var isUpdateCurrentTask = currentTask.Count(x => x.IsCompleted) > maxCurrentTaskCount || serviceTasks.Count < maxCurrentTaskCount;
+                //if (!isUpdateCurrentTask)
+                //{
+                //    continue;
+                //}
 
-        private async Task<TestResult> _TestAsync2()
-        {
-            var testStartDT = DateTime.Now;
-            var serviceTaskResults = new List<Task<ServiceResult>>();
 
-            for (int i = 0; i < 3; i++)
-            {
-                serviceTaskResults.Add(_randomNumberApiClientService.GetNumberAsync());
-            }            
+                //var doneTaskIds = currentTask
+                //    .Where(x => x.IsCompleted)
+                //    .Select((x, idx) => idx)
+                //    .OrderByDescending(x => x)
+                //    .ToList();
+                //doneTasks.AddRange(currentTask.Where((x, idx) => doneTaskIds.Contains(idx)));
+                //foreach (var doneTaskId in doneTaskIds)
+                //{
+                //    currentTask.RemoveAt(doneTaskId);
+                //}
 
-            foreach (var serviceTaskResult in serviceTaskResults)
-            {
-                await serviceTaskResult;
+                var firstDoneTaskId = currentTask
+                    .Where(x => x.IsCompleted)
+                    .Select((x, idx) => idx)
+                    .First();
+
+                doneTasks.Add(currentTask[firstDoneTaskId]);
+                currentTask.RemoveAt(firstDoneTaskId);
             }
 
-            var apiResults = serviceTaskResults.Select(x => x.Result).ToList();
+            await Task.WhenAll(currentTask);
+            doneTasks.AddRange(currentTask);
 
-            var testResult = new TestResult(testStartDT, apiResults);
-            return testResult;
+            var doneTaskResults = Task.WhenAll(doneTasks);
+            var serviceResults = await doneTaskResults;
+
+            //var testResult = new TestResult(testStartDT, doneTasks.Select(x => x.Result).ToList());
+            var testResult = new TestResult(testStartDT, serviceResults.ToList());
+            //testResult.ServiceResults = new List<ServiceResult>();
+            return Ok(testResult);
         }
     }
 }

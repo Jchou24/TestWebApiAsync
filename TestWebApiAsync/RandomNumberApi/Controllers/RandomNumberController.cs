@@ -31,5 +31,18 @@ namespace ApiB.Controllers
 
             return new ApiResult(startDateTime);
         }
+
+        /// <summary>
+        /// Get random number after 3(default) sec
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("{waitTime}")]
+        public ActionResult<ApiResult> Get(int waitTime = 3000)
+        {
+            var startDateTime = DateTime.Now;
+            Thread.Sleep(waitTime);
+
+            return new ApiResult(startDateTime);
+        }
     }
 }

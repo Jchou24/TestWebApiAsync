@@ -7,8 +7,8 @@ namespace TestUtility.Models
 {
     public interface IRandomNumberApiClientService
     {
-        Task<ServiceResult> GetNumberAsync();
+        Task<ServiceResult> GetNumberAsync(int? waitTime = null);
 
-        ServiceResult GetNumber();
+        ServiceResult GetNumber(int? waitTime = null);
     }
 }

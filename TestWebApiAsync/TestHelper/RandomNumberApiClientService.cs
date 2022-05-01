@@ -16,19 +16,26 @@ namespace TestUtility
             this._httpClient = httpClient;
         }
 
-        public async Task<ServiceResult> GetNumberAsync()
+        private static string _GetUri(int? waitTime) => "RandomNumber" + (waitTime != null ? $"/{waitTime}" : "");
+
+        public async Task<ServiceResult> GetNumberAsync(int? waitTime = null)
         {
-            var response = await _httpClient.GetAsync("RandomNumber");
+            var response = await _httpClient.GetAsync(_GetUri(waitTime));
             var responseString = await response.Content.ReadAsStringAsync();
             var apiResult = JsonSerializer.Deserialize<ApiResult>(responseString, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
             return new ServiceResult(apiResult);
         }
 
-        public ServiceResult GetNumber()
+        /// <summary>
+        /// Unstable method, avoid to use .Result
+        /// </summary>
+        /// <param name="waitTime"></param>
+        /// <returns></returns>
+        public ServiceResult GetNumber(int? waitTime = null)
         {
-            var response = _httpClient.GetAsync("RandomNumber").Result;
-            var responseString = response.Content.ReadAsStringAsync().Result;
+            var response = _httpClient.GetAsync(_GetUri(waitTime)).Result; // avoid to use .Result
+            var responseString = response.Content.ReadAsStringAsync().Result; // avoid to use .Result
             var apiResult = JsonSerializer.Deserialize<ApiResult>(responseString, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
             return new ServiceResult(apiResult);

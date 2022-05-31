@@ -268,5 +268,84 @@ namespace WebApplication6.Controllers
             }
             return Ok(testResult);
         }
+
+        /// <summary>
+        /// async call with amount: "count", conccurent, different task with same Semaphore
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("{count}/{conccurent}/{isShowDetail}")]
+        public async Task<ActionResult<TestResult>> TestAsyncLoopCountConccurent_WithZeroRunningTimeTask_bySemaphoreSlim_SharedSemaphore(int count, int conccurent, bool isShowDetail = false)
+        {
+            var testStartDT = DateTime.Now;
+            var serviceTaskResults = new List<ServiceResult>();
+            var semaphoreSlim = new SemaphoreSlim(conccurent, conccurent);
+
+            var countGenerator = new CountGenerator();
+            var serviceTasks1 = Enumerable
+                .Repeat<Func<int?, Task<ServiceResult>>>(_randomNumberApiClientService.GetNumberAsync, count / 2)
+                .Select(async GetNumberAsync => {
+                    try
+                    {
+                        await semaphoreSlim.WaitAsync();
+
+                        //return await GetNumberAsync(countGenerator.GetCount());
+                        return await GetNumberAsync(0);
+                    }
+                    catch
+                    {
+                        // Ignore any exception to continue loading other URLs.
+                        // You should definitely log the exception in a real
+                        // life application.
+                        //return new HttpResponseMessage();
+                        return new ServiceResult();
+                    }
+                    finally
+                    {
+                        semaphoreSlim.Release();
+                    }
+                })
+                .ToList();
+
+            var serviceTasks2 = Enumerable
+                .Repeat<Func<int?, Task<ServiceResult>>>(_randomNumberApiClientService.GetNumberAsync, count - (count / 2))
+                .Select(async GetNumberAsync => {
+                    try
+                    {
+                        await semaphoreSlim.WaitAsync();
+
+                        //return await GetNumberAsync(countGenerator.GetCount());
+                        return await GetNumberAsync(0);
+                    }
+                    catch
+                    {
+                        // Ignore any exception to continue loading other URLs.
+                        // You should definitely log the exception in a real
+                        // life application.
+                        //return new HttpResponseMessage();
+                        return new ServiceResult();
+                    }
+                    finally
+                    {
+                        semaphoreSlim.Release();
+                    }
+                })
+                .ToList();
+
+            var serviceTasks1Result = (await Task.WhenAll(serviceTasks1)).ToList();
+            var serviceTasks2Result = (await Task.WhenAll(serviceTasks2)).ToList();
+            var serviceTasks = serviceTasks1Result;
+            serviceTasks.AddRange(serviceTasks2Result);
+
+            //var serviceTasks = serviceTasks1;
+            //serviceTasks.AddRange(serviceTasks2);
+
+            var testResult = new TestResult(testStartDT, serviceTasks);
+            //var testResult = new TestResult(testStartDT, (await Task.WhenAll(serviceTasks)).ToList());
+            if (!isShowDetail)
+            {
+                testResult.ServiceResults = new List<ServiceResult>();
+            }
+            return Ok(testResult);
+        }
     }
 }

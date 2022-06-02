@@ -308,11 +308,14 @@ namespace WebApplication6.Controllers
 
             var serviceTasks2 = Enumerable
                 .Repeat<Func<int?, Task<ServiceResult>>>(_randomNumberApiClientService.GetNumberAsync, count - (count / 2))
-                .Select(async GetNumberAsync => {
+                .Select(async GetNumberAsync => { // 定義一個 task
                     try
                     {
+                        // 執行前固定等待
+                        // 當 semaphor 有空閒資源，就會離開下一行，否則在下一行等待
                         await semaphoreSlim.WaitAsync();
 
+                        // 真正要做的事
                         //return await GetNumberAsync(countGenerator.GetCount());
                         return await GetNumberAsync(0);
                     }
@@ -326,6 +329,7 @@ namespace WebApplication6.Controllers
                     }
                     finally
                     {
+                        // 做完後 release semaphor
                         semaphoreSlim.Release();
                     }
                 })
